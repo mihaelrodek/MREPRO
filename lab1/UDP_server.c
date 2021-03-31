@@ -9,19 +9,66 @@
 #include <string.h>
 #include <err.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #define MAXLEN 512
 #define PORT 1234
 
+int Socket(int family, int type, int protocol){
+	int n;
+
+	if ((n=socket(family,type,protocol))==-1){
+		strerror(88);
+		exit(4);
+	} else {
+		return n;
+	}
+}
+
+int Bind(int sockfd, const struct sockaddr *myaddr, int addrlen){
+	
+	if(bind(sockfd, myaddr, addrlen)==-1){
+		strerror(6);
+		exit(4);
+	} else {
+		return 0;		
+	}		
+}
+
+int Getaddrinfo(const char *hostname, const char *service, const struct addrinfo *hints, struct addrinfo **result) {
+	
+	if (getaddrinfo(hostname, service, hints, result)==-1){
+		strerror(6);
+		exit(5);
+	} else {
+		return 0;
+	}
+}
+
+bool startsWith(const char *pre, const char *str)
+{
+    size_t lenpre = strlen(pre),
+           lenstr = strlen(str);
+    return lenstr < lenpre ? false : memcmp(pre, str, lenpre) == 0;
+}
+
+
+
 int main(int argc, char *argv[]){
 	
-	int port_addr=1234;
+	char *port_addr="1234";
 	int option;
-	char *payload="", *buff;
+	char *payload="";
+	char buff[MAXLEN];
+	
 	int mysock;
-	struct sockaddr_in myaddr, cliaddr;
-	socklen_t cllen;
+	
+	struct sockaddr cliaddr;
+	socklen_t clilen;
+	
 	int received;
+	struct addrinfo hints, *res;
+
 
 	if (argc!=1 && argc!=3 && argc!=5){
 		err(3,"Usage: ./UDP_server [-l port] [-p payload]");
@@ -30,48 +77,55 @@ int main(int argc, char *argv[]){
 	while ((option = getopt(argc, argv, "l:p:")) != -1){
 		switch (option){
 			case 'l':
-				port_addr = atoi(optarg);
+				port_addr = optarg;
 				break;
 			case 'p':
 				payload = optarg;
 				break;
 			default:
-				port_addr=1234;
+				port_addr="1234";
 				payload="";
 				break;
 		}
 	}
 	
-	if((mysock = socket(PF_INET, SOCK_DGRAM, 0))==-1){
-		perror("Socket error");
-		exit(1);
-	}
+	memset(&hints, 0, sizeof(hints));
 
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags =  AI_PASSIVE;
+			
+	Getaddrinfo(NULL, port_addr, &hints, &res);
 	
-	memset(&myaddr, 0, sizeof(myaddr));
+	mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+	Bind(mysock, res->ai_addr, res->ai_addrlen);
 	
-	myaddr.sin_family = AF_INET;
-	myaddr.sin_port = htons(port_addr);
-	myaddr.sin_addr.s_addr = INADDR_ANY;
-
-	bind(mysock, (struct sockaddr *)&myaddr, sizeof(myaddr));
-
+	clilen = sizeof(cliaddr);
 
 	while(1){
 
-		received = recvfrom(mysock, &buff, MAXLEN,0,(struct sockaddr *)&cliaddr, &cllen);
+		received = recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
 		
 		if(received==-1){
-			perror("Error, couldn't receive data");
-			exit(1);
+			strerror(4);
 		}
 		
-		//printf("Cekam hello\n");
+		buff[received+1]='\0';
 		
-		if(strcmp("HELLO\n", buff)==0){
-			//printf("HELLO recieved\n");
-			sendto(mysock, payload, MAXLEN,0,(struct sockaddr *)&cliaddr, cllen);
+	
+		if(startsWith("HELLO",buff)){
+			
+			received = sendto(mysock, payload, MAXLEN, 0, &cliaddr, clilen);
+			
+			if(received==-1){
+				strerror(70);
+			}
+				
+		}else {
+			
 		}
+		
 	}
 	
 	close(mysock);
