@@ -57,20 +57,22 @@ int Bind(int sockfd, const struct sockaddr *myaddr, int addrlen){
 		return 0;		
 	}
 }
+
+struct respond {
+	char offset[4];
+	char *filename;
+};
 	
 
 int main(int argc, char *argv[]) {	
 	
 	int mysocket, newsock;
-	int option, port = PORT, err;
-	int i;
-	bool p_flag = false;
-	int offset;
-	int pomak;
+	int option, port = PORT;
+	//bool p_flag = false;
+	int offset, i, pomak=0;
 
 	char messagebuff[MAXLEN];
-	char ime[MAXLEN];
-	char *error;
+	char *ime;
 	
 	FILE *datoteka;
 	struct stat info;
@@ -107,7 +109,7 @@ int main(int argc, char *argv[]) {
 				break;
 				
 			default : 	
-				printf("USAGE: ./tcpserver [-p portnum]\n");
+				printf("USAGE: ./tcpserver [-p port]\n");
 				return 2;
 		}
 	}
@@ -124,7 +126,9 @@ int main(int argc, char *argv[]) {
 	Bind(mysocket, (struct sockaddr *) &myaddr, sizeof(myaddr));
 		
 	
-	Listen(mysocket, 1);		//samo 1?
+	Listen(mysocket, 1);
+	
+	struct respond message;
 	
 	while (1) {
 		
@@ -132,36 +136,33 @@ int main(int argc, char *argv[]) {
 
 		newsock = Accept(mysocket, (struct sockaddr *)&clientaddr, &serverlen);
 		
-		int len=recv(newsock, messagebuff, MAXLEN, 0);
+		int len=recv(newsock, (char *)&message, sizeof(message), 0);
 		
 		for ( i = 0; i < 4; i++) {
-			offset = messagebuff[i] & 0xFF;
+			offset = message.offset[i] & 0xFF;
 			offset = offset << 8*i;
 			pomak |= offset;
 		}
 			
-				
-		for ( i = 0; i < len; i++) {
-			ime[i] = messagebuff[i+4];
-		}
+		ime=message.filename;
 
-		if (strcmp(messagebuff, "\0")) {
+		//if (strcmp(messagebuff, "\0")) {
 			//printf("Kraj datoteke.\n");
+			//close(newsock);
+			//close(mysocket);
+			//return 0;printf("%s\n", strerror(errno));
+		//}
+	
+	
+		if (strchr(ime, '/') ) {
+			buffer = 0x03;
+			printf("Dan zahtijev za datotekom izvan trenutnog direktorija.\n");
 			close(newsock);
 			close(mysocket);
-			return 0;
-		}
-	
-		//if (strchr(messagebuff, '/') ) {
-		//	printf("Dan zahtijev za datotekom izvan trenutnog direktorija.\n");
-		//	close(newsock);
-		//	close(mysocket);
-		//	return -5;
-		//}
-		
-		datoteka = fopen(messagebuff, "rb");
-		if (datoteka == NULL) {
-			//printf("Datoteka ne postoji u trenutnom direktoriju.\n");
+			return -5;
+		}else if ((datoteka = fopen(ime, "rb")) == NULL) {
+			buffer = 0x01;
+			write(newsock, buffer, strlen(buffer)+1);
 			printf("%s\n", strerror(errno));
 			close(newsock);
 			close(mysocket);
@@ -171,8 +172,9 @@ int main(int argc, char *argv[]) {
 		fstat(fileno(datoteka), &info);
 		buffer = malloc(info.st_size + 1);	
 		fread(buffer, 1, info.st_size, datoteka);
-		
+	
 		option = write(newsock, buffer, strlen(buffer)+1);
+
 
 		free(buffer);
 		close(newsock);

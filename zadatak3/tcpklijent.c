@@ -9,9 +9,9 @@
 #include <err.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <sys/stat.h>
 
-
-#define MAXLEN 85600
+#define MAXLEN 25600
 #define PORT 1234
 
 int Socket(int family, int type, int protocol){
@@ -48,16 +48,19 @@ int main (int argc, char *argv[]) {
 
 	int port=1234, option;
 	int i;
-	bool p_flag = false, c_flag=false;
+	bool c_flag=false;
 	int mysocket;
-	int msglength, err;
-	char *error;
+	int msglength;
+	char  *server;
 	char message[MAXLEN];
 	struct sockaddr_in serveraddr;
 	struct addrinfo hints, *result;
+	struct stat info;
+	FILE *datoteka;
 	socklen_t serverlen;
 	struct servent *service;
 	int pomak;
+	uint32_t offset;
 	
 	memset(&serveraddr, 0, sizeof(serveraddr));	
 	
@@ -84,8 +87,8 @@ int main (int argc, char *argv[]) {
 				}	
 				break;
 			case 's':
-				server=atoi(optarg);
-				
+				server=optarg;
+				break;
 			case 'c':
 				c_flag = true;
 				break;			
@@ -94,7 +97,7 @@ int main (int argc, char *argv[]) {
 				return 2;
 		}
 	}
-
+	
 	
 	if (inet_pton(AF_INET, server, &serveraddr.sin_addr) != 1) {
 
@@ -118,6 +121,13 @@ int main (int argc, char *argv[]) {
 	serverlen = sizeof(serveraddr);
 	
 	Connect(mysocket, (struct sockaddr *) &serveraddr, sizeof serveraddr);
+	
+	pomak = htonl(pomak);	
+	for (i = 0; i < 4; i++) {		
+		offset = pomak >> (24-8*i);
+		offset = offset & 0xFF;
+		message[i] = offset;
+	}
 		
 	for (i = 0; i < strlen(argv[argc-1]); i++) {
 		message[4+i] = argv[argc-1][i];
@@ -131,7 +141,7 @@ int main (int argc, char *argv[]) {
 	
 	if (c_flag) {	
 		datoteka = fopen(argv[argc-1], "ab");	
-		fstat(fileno(datoteka), &info);					//info
+		fstat(fileno(datoteka), &info);
 		pomak = info.st_size;
 	}else {	
 		if ((datoteka = fopen(argv[argc-1], "rb")) != NULL) {
@@ -144,7 +154,8 @@ int main (int argc, char *argv[]) {
 	msglength = strlen(argv[argc-1]);		
 	i = send(mysocket, message, msglength + 5, 0);
 	
-	//printf("POSLANO.\n");
+	while ( (i = read(mysocket, message, MAXLEN) ) != 0 ) 
+		fprintf(datoteka, "%s", message);
 
 	close(mysocket);
 	return 0;
