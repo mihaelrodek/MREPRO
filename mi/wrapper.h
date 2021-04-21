@@ -94,7 +94,7 @@ ssize_t readn(int fd, void *vptr, size_t n){
 	ptr += nread;
     }
     return(n - nleft);
-}
+} 
 
 ssize_t writen(int fd, const void *vptr, size_t n) {
 
@@ -117,7 +117,7 @@ ssize_t writen(int fd, const void *vptr, size_t n) {
     return (n);
 }
 
-
+/*
 int Inet_pton(int af, const char *src, void *dst){
 	int n;
 	if((n== inet_pton(af, src, dst))==-1){
@@ -128,8 +128,9 @@ int Inet_pton(int af, const char *src, void *dst){
 
 int Inet_ntop(int af, const void *src, char *dst, socklen_t size){
 	int n;
-	if((n== inet_pton(af, src, dst, size))==-1){
+	if((n== inet_ntop(af, src, dst, size))==-1){
 		fprintf(stderr, "inet_pton: %s", gai_strerror(n));
 	}else return n;
 }
+* */
 

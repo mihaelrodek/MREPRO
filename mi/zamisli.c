@@ -10,34 +10,88 @@
 #include <err.h>
 #include <errno.h>
 #include <stdbool.h>
+#include <netinet/ip.h>        
 
 #include "wrapper.h"
 
 #define MAXLEN 512
 #define DEFAULT_PORT 5555
 
+
+struct INIT {
+	char command;
+	uint16_t max;
+	uint16_t nula;
+};
+
+struct BROJ {
+	char command[4];
+	uint32_t clid;
+	uint16_t nn;
+	uint16_t xx;
+};
+
+struct RESP {
+	char command[2];
+	uint16_t nula;
+	uint32_t clid;
+	uint16_t nn;
+	uint16_t port;
+};
+
 int main(int argc, char *argv[]){
 	
-	int option;
+	int option, timeout=5;
+	char *port="1234";
 	
-	if (argc!=1 && argc!=3 && argc!=5){
-		err(3,"Usage: ./UDP_server [-l port] [-p payload]");
+	int mysock;
+	pid_t pid;
+	struct sockaddr cliaddr;
+	socklen_t clilen;
+	
+	int received;
+	struct addrinfo hints, *res;
+	
+	
+	
+	if (argc!=1 && argc!=3 && argc!=4){
+		err(3,"Usage: ./zamisli [-t timeout] [port]");
 	}
 	
-	while ((option = getopt(argc, argv, "l:p:")) != -1){
+	while ((option = getopt(argc, argv, "t:p")) != -1){
 		switch (option){
-			case 'l':
-				port_addr = optarg;
+			case 't':
+				timeout = atoi(optarg);
 				break;
 			case 'p':
-				payload = optarg;
+				port = optarg;
 				break;
 			default:
-				port_addr="1234";
-				payload="";
+				timeout=5;
+				port="1234";
 				break;
 		}
 	}
+	
+	
+	memset(&hints, 0, sizeof(hints));
+
+	hints.ai_family = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
+	hints.ai_flags =  AI_PASSIVE;
+			
+	Getaddrinfo(NULL, port_addr, &hints, &res);
+	
+	mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+
+	Bind(mysock, res->ai_addr, res->ai_addrlen);
+	
+	clilen = sizeof(cliaddr);
+	
+	pid=getpid();
+	
+	
+	
 	
 	//printf("tu sam");
 	
@@ -45,6 +99,13 @@ int main(int argc, char *argv[]){
 
 
 	//printf("a sad tu");
+	
+	while(true){
+		
+		
+		
+		
+	}
 	
 	
 	
