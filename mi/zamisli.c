@@ -93,6 +93,7 @@ int main(int argc, char *argv[]){
 	struct BROJ broj;
 	struct RESP resp;
 	struct INIT initial;
+	struct TCP tcpS;
 	
 	char *buff;
 	int i=0;
@@ -175,20 +176,24 @@ int main(int argc, char *argv[]){
 			
 			brojChar=broj.command;
 			pokusaj=ntohs(broj.xx);
-			nn=broj.nn;
+			
+			for(int j=0;j<10;j++)
+				if(broj.clid!=j) continue;
 		
 			//printf("tu\n");
-			if(pokusaj==num){
+			if(pokusaj==numberList[i]){
 			
 			Getaddrinfo(NULL, 0, &hintsTcp, &resTcp);
 			
 			strncpy(resp.command,"OK",2);
 			resp.clid=broj.clid;
-			resp.nn=nn;
-			resp.port = htons((struct sockaddr_in *)resTcp->ai_addr->sin_port);
+			resp.nn=broj.nn;
 			
 			sockTcp = Socket(resTcp->ai_family, resTcp->ai_socktype, resTcp->ai_protocol);
+			
 			Bind(sockTcp, resTcp->ai_addr, resTcp->ai_addrlen);
+			resp.port = htons((struct sockaddr_in *)resTcp->ai_addr->sin_port);
+
 			Listen(sockTcp, 1);
 			
 
@@ -206,8 +211,8 @@ int main(int argc, char *argv[]){
 				if ((pid = fork())==0){
 						uint32_t tcpId = htonl((uint32_t) broj.clid);
 						
-						struct TCP tcpS;
-						
+						memset(&tcpS, 0, sizeof(tcpS));
+
 						tcpS.clid=tcpId;
 						strcpy(tcpS.message,":<–FLAG–MrePro–2020-2021-MI–>\n");
 						Writen(sockTcp,tcpS, sizeof(tcpS));
@@ -217,14 +222,14 @@ int main(int argc, char *argv[]){
 			}
 			
 			
-		}else if(pokusaj>num){
+		}else if(pokusaj>numberList[i]){
 			strncpy(resp.command,"HI",2);
 			resp.clid=broj.clid;
 			resp.nn=nn;
 			
 			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 			
-		}else if(pokusaj<num){
+		}else if(pokusaj<numberList[i]){
 			strncpy(resp.command,"LO",2);
 			resp.clid=broj.clid;
 			resp.nn=nn;
