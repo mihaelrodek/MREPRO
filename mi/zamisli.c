@@ -53,6 +53,7 @@ struct ID {
 	uint32_t clid;
 };
 
+
 void *Signal(int signo, void *func){				
     void *sigfunc;
 
@@ -81,11 +82,16 @@ int main(int argc, char *argv[]){
 	int brojPokusaja=0;
 	char *brojChar;
 	
+	int clientList[10];
+	int numberList[10];
 	
     struct ID id;
 	struct BROJ broj;
 	struct RESP resp;
+	struct INIT initial;
 	
+	char *buff;
+	int i=0;
 	
 	if (argc!=1 && argc!=3 && argc!=4){
 		err(3,"Usage: ./zamisli [-t timeout] [port]");
@@ -124,70 +130,66 @@ int main(int argc, char *argv[]){
 
 	Bind(mysock, res->ai_addr, res->ai_addrlen);
 	
-	//clilen = sizeof(cliaddr);
+	clilen = sizeof(cliaddr);
 	//pid=getpid();
 	
-	struct INIT initial;
-	
-	
-	printf("tu sam\n");
-	
-	received = Recvfrom(mysock, (char *)&initial, sizeof(initial), 0, &cliaddr, &clilen);
-	
-	
-	if(strncmp("INIT",brojChar,4)!=0){
-		continue;
-	}
-
-	max = initial.max;
-	nula = initial.nula;
-	
-	srand(time(0));
-	
-	int num = (rand() % (max - nula + 1)) + nula;
-    printf("Generiran %d\n ", num);
-    
-	
-    strncpy(id.command,"ID",2);
-    id.clid=clidCounter;
-    
-    clidCounter++;
-    
-    clilen = sizeof(cliaddr);
-
-	received = Sendto(mysock, (char *)&id, sizeof(id), 0, &cliaddr, clilen);
-
-
-	//printf("a sad tu");
 	
 	
 	while(true){
 		
-		received=Recvfrom(mysock, (char*)&broj, sizeof(broj), 0, &cliaddr, &clilen);
+		received = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
 		
-		brojChar=broj.command;
-		pokusaj=broj.xx;
-		nn=broj.nn;
+	
+	
+		if(strncmp("INIT",brojchar,4)==0){
+
+			memset(&initial,0,sizeof(initial));
+			memcpy(&initial,&buf,received);
+			max = ntohs(initial.max);
+			nula = initial.nula;
 		
-		if(strncmp("BROJ",brojChar,4)!=0){
-			continue;
-		}
+			srand(time(0));
 		
-		printf("tu\n");
-		if(pokusaj==num){
+			int num = (rand() % (max - nula + 1)) + nula;
+	
+			clientList[i]=clidCounter;
+			numberList[i]=num;
+	
+			memset(&resp,0,sizeof(resp));
+			
+			strncpy(id.command,"ID",2);
+			id.clid=clidCounter;
+    
+			clidCounter++;
+    
+			clilen = sizeof(cliaddr);
+
+			received = Sendto(mysock, (char *)&id, sizeof(id), 0, &cliaddr, clilen);
+		
+			received=Recvfrom(mysock, (char*)&broj, sizeof(broj), 0, &cliaddr, &clilen);
+		
+			brojChar=broj.command;
+			pokusaj=ntohs(broj.xx);
+			nn=broj.nn;
+		}else if(strncmp("BROJ",brojChar,4)==0){
+			
+			memset(&resp,0, sizeof(resp));
+			memcpy(&resp,&buf,received);
+		
+			//printf("tu\n");
+			if(pokusaj==num){
 			
 			Getaddrinfo(NULL, 0, &hintsTcp, &resTcp);
 			
 			strncpy(resp.command,"OK",2);
-			resp.clid=clidCounter;
+			resp.clid=broj.clid;
 			resp.nn=nn;
-					
+			resp.port = htons((struct sockaddr_in *)resTcp->ai_addr->sin_port);
 			
 			sockTcp = Socket(resTcp->ai_family, resTcp->ai_socktype, resTcp->ai_protocol);
 			Bind(sockTcp, resTcp->ai_addr, resTcp->ai_addrlen);
 			Listen(sockTcp, 1);
 			
-			resp.port = htons(resTcp->ai_addr.sin_port);
 
 			received =  Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 		
@@ -196,40 +198,34 @@ int main(int argc, char *argv[]){
 				received = Accept(sockTcp,resTcp->ai_addr,resTcp->ai_addrlen);
 				
 				if ((pid = fork())==0){
-					
+						uint32_t t = (uint32_t) broj.clid;
+						
+						t=htonl(t);
+						
+						close(sockTcp);
+						exit(1);
 				}
-				
 			}
-			
-			//fork();
-			
-			//accept();
-			
-			//alarm(timeout);
 			
 			
 		}else if(pokusaj>num){
 			strncpy(resp.command,"HI",2);
-			resp.clid=clidCounter;
+			resp.clid=broj.clid;
 			resp.nn=nn;
 			
 			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 			
 		}else if(pokusaj<num){
 			strncpy(resp.command,"LO",2);
-			resp.clid=clidCounter;
+			resp.clid=broj.clid;
 			resp.nn=nn;
 	
 			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 		}
-
 		
-		brojPokusaja++;
 		clidCounter++;
-		if(brojPokusaja==10)break;
-			
-		
-		
+		if(clidCounter==10)break;
+					
 	}
 	
 	
