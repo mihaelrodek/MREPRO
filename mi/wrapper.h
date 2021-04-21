@@ -134,3 +134,20 @@ int Inet_ntop(int af, const void *src, char *dst, socklen_t size){
 }
 * */
 
+int Sendto(int sockfd, void *buff, size_t nbytes, int flags, const struct sockaddr* to, socklen_t addrlen){
+		int n;
+		if((n=sendto(sockfd, buff, nbytes, flags, to, addrlen))!=nbytes){
+				fprintf(stderr, "sendto: %s", gai_strerror(n));
+				exit(1);
+		}else return n;
+}
+
+int Recvfrom(int sock_fd,  char *msg, size_t nbytes, int flags, struct sockaddr* from, socklen_t *fromaddrlen){
+		int n ;
+		if((n = recvfrom(sock_fd, msg, nbytes, flags, from, fromaddrlen)) <0){
+				fprintf(stderr, "recvfrom: %s", gai_strerror(n));
+				exit(1);
+		}else return n;
+}
+
+

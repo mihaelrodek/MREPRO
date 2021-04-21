@@ -39,6 +39,12 @@ struct RESP {
 	uint16_t port;
 };
 
+struct ID {
+	char command[2];
+	uint16_t nula;
+	char clid[4];
+};
+
 int main(int argc, char *argv[]){
 	
 	int option, timeout=5;
@@ -50,8 +56,18 @@ int main(int argc, char *argv[]){
 	socklen_t clilen;
 	
 	int received;
+	uint16_t max, nula;
 	struct addrinfo hints, *res;
+	uint32_t clid;
+	char *sendClid;
 	
+	uint16_t pokusaj,nn;
+	int brojPokusaja=0;
+	
+	
+    struct ID id;
+	struct BROJ broj;
+	struct RESP resp;
 	
 	
 	if (argc!=1 && argc!=3 && argc!=4){
@@ -73,6 +89,7 @@ int main(int argc, char *argv[]){
 		}
 	}
 	
+	//printf("%d, %s\n", timeout, port);
 	
 	memset(&hints, 0, sizeof(hints));
 
@@ -80,29 +97,75 @@ int main(int argc, char *argv[]){
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags =  AI_PASSIVE;
 			
-	Getaddrinfo(NULL, port_addr, &hints, &res);
+	Getaddrinfo(NULL, port, &hints, &res);
 	
 	mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 
 	Bind(mysock, res->ai_addr, res->ai_addrlen);
 	
-	clilen = sizeof(cliaddr);
+	//clilen = sizeof(cliaddr);
+	//pid=getpid();
 	
-	pid=getpid();
+	struct INIT initial;
 	
 	
+	printf("tu sam\n");
 	
+	received = Recvfrom(mysock, (char *)&initial, MAXLEN, 0, &cliaddr, &clilen);
+
+	max = initial.max;
+	nula = initial.nula;
 	
-	//printf("tu sam");
+	srand(time(0));
 	
-	//memset(&hints, 0, sizeof(hints));
+	int num = (rand() % (max - nula + 1)) + nula;
+    printf("Generiran %d\n ", num);
+    
+	
+    id.command="ID";
+    id.clid=clid;
+    
+    clilen = sizeof(cliaddr);
+
+	received = Sendto(mysock, (char *)&id, strlen(id), 0, &cliaddr, clilen);
 
 
 	//printf("a sad tu");
 	
+	
 	while(true){
 		
+		received=Recvfrom(mysock, (char*)&broj, MAXLEN, 0, &cliaddr, &clilen);
 		
+		pokusaj=broj.xx;
+		nn=broj.nn;
+		
+		if(pokusaj==num){
+			resp.comand="OK";
+			resp.clid=clid;
+			resp.nn=nn;
+			resp.port=htons(port);
+			
+			
+		}else if(pokusaj>num){
+			resp.comand="HI";
+			resp.clid=clid;
+			resp.nn=nn;
+			
+			
+		}else if(pokusaj<num){
+			resp.comand="LO";
+			resp.clid=clid;
+			resp.nn=nn;
+		
+			
+			
+		}
+		
+		
+		brojPokusaja++;
+		if(brojPokusaja==10)break;
+			
 		
 		
 	}
