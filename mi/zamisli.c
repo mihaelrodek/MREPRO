@@ -95,7 +95,7 @@ int main(int argc, char *argv[]){
 	struct INIT initial;
 	struct TCP tcpS;
 	
-	char *buff;
+	char *buff=NULL;
 	int i=0;
 	
 	if (argc!=1 && argc!=3 && argc!=4){
@@ -143,10 +143,10 @@ int main(int argc, char *argv[]){
 		
 	
 	
-		if(strncmp("INIT",brojchar,4)==0){
+		if(strncmp("INIT",brojChar,4)==0){
 
 			memset(&initial,0,sizeof(initial));
-			memcpy(&initial,&buf,received);
+			memcpy(&initial,&buff,received);
 			max = ntohs(initial.max);
 			nula = initial.nula;
 		
@@ -171,7 +171,7 @@ int main(int argc, char *argv[]){
 		}else if(strncmp("BROJ",brojChar,4)==0){
 			
 			memset(&broj, 0, sizeof(broj));
-			memcpy(&broj, &buf,received);
+			memcpy(&broj, &buff,received);
 			
 			
 			brojChar=broj.command;
@@ -192,7 +192,7 @@ int main(int argc, char *argv[]){
 			sockTcp = Socket(resTcp->ai_family, resTcp->ai_socktype, resTcp->ai_protocol);
 			
 			Bind(sockTcp, resTcp->ai_addr, resTcp->ai_addrlen);
-			resp.port = htons((struct sockaddr_in *)resTcp->ai_addr->sin_port);
+			resp.port = htons(((struct sockaddr_in *)resTcp->ai_addr)->sin_port);
 
 			Listen(sockTcp, 1);
 			
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]){
 				siginterrupt(SIGALRM,1);
 				alarm(timeout);
 				
-				received = Accept(sockTcp,resTcp->ai_addr,resTcp->ai_addrlen);
+				received = Accept(sockTcp,resTcp->ai_addr,&resTcp->ai_addrlen);
 
 
 				if ((pid = fork())==0){
@@ -215,7 +215,7 @@ int main(int argc, char *argv[]){
 
 						tcpS.clid=tcpId;
 						strcpy(tcpS.message,":<–FLAG–MrePro–2020-2021-MI–>\n");
-						Writen(sockTcp,tcpS, sizeof(tcpS));
+						writen(sockTcp,&tcpS, sizeof(tcpS));
 						close(sockTcp);
 						exit(1);
 				}
@@ -241,7 +241,7 @@ int main(int argc, char *argv[]){
 		if(clidCounter==10)break;
 					
 	}
-	
+}
 	
 	
 }
