@@ -11,11 +11,19 @@
 #include <errno.h>
 #include <stdbool.h>
 #include <netinet/ip.h>        
-
+#include <signal.h>
 #include "wrapper.h"
 
 #define MAXLEN 512
 #define DEFAULT_PORT 5555
+
+
+void sig_alrm(int signo)
+{
+    alarm(1);
+    return;
+}
+
 
 
 struct INIT {
@@ -42,27 +50,36 @@ struct RESP {
 struct ID {
 	char command[2];
 	uint16_t nula;
-	char clid[4];
+	uint32_t clid;
 };
+
+void *Signal(int signo, void *func){				
+    void *sigfunc;
+
+    if ((sigfunc = signal(signo, func)) == SIG_ERR)
+	warn("signal error");
+    return (sigfunc);
+}
 
 int main(int argc, char *argv[]){
 	
 	int option, timeout=5;
 	char *port="1234";
 	
-	int mysock;
+	int mysock, sockTcp;
 	pid_t pid;
 	struct sockaddr cliaddr;
 	socklen_t clilen;
 	
 	int received;
-	uint16_t max, nula;
-	struct addrinfo hints, *res;
-	uint32_t clid;
+	uint16_t max, nula,tcpPort;
+	struct addrinfo hints, hintsTcp, *res, *resTcp;
+	uint32_t clidCounter=1;
 	char *sendClid;
 	
 	uint16_t pokusaj,nn;
 	int brojPokusaja=0;
+	char *brojChar;
 	
 	
     struct ID id;
@@ -92,6 +109,10 @@ int main(int argc, char *argv[]){
 	//printf("%d, %s\n", timeout, port);
 	
 	memset(&hints, 0, sizeof(hints));
+	
+	Signal(SIGALRM, sig_alrm);
+	siginterrupt(SIGALRM,1);
+	alarm(timeout);
 
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
@@ -111,7 +132,12 @@ int main(int argc, char *argv[]){
 	
 	printf("tu sam\n");
 	
-	received = Recvfrom(mysock, (char *)&initial, MAXLEN, 0, &cliaddr, &clilen);
+	received = Recvfrom(mysock, (char *)&initial, sizeof(initial), 0, &cliaddr, &clilen);
+	
+	
+	if(strncmp("INIT",brojChar,4)!=0){
+		continue;
+	}
 
 	max = initial.max;
 	nula = initial.nula;
@@ -122,12 +148,14 @@ int main(int argc, char *argv[]){
     printf("Generiran %d\n ", num);
     
 	
-    id.command="ID";
-    id.clid=clid;
+    strncpy(id.command,"ID",2);
+    id.clid=clidCounter;
+    
+    clidCounter++;
     
     clilen = sizeof(cliaddr);
 
-	received = Sendto(mysock, (char *)&id, strlen(id), 0, &cliaddr, clilen);
+	received = Sendto(mysock, (char *)&id, sizeof(id), 0, &cliaddr, clilen);
 
 
 	//printf("a sad tu");
@@ -135,35 +163,69 @@ int main(int argc, char *argv[]){
 	
 	while(true){
 		
-		received=Recvfrom(mysock, (char*)&broj, MAXLEN, 0, &cliaddr, &clilen);
+		received=Recvfrom(mysock, (char*)&broj, sizeof(broj), 0, &cliaddr, &clilen);
 		
+		brojChar=broj.command;
 		pokusaj=broj.xx;
 		nn=broj.nn;
 		
+		if(strncmp("BROJ",brojChar,4)!=0){
+			continue;
+		}
+		
+		printf("tu\n");
 		if(pokusaj==num){
-			resp.comand="OK";
-			resp.clid=clid;
+			
+			Getaddrinfo(NULL, 0, &hintsTcp, &resTcp);
+			
+			strncpy(resp.command,"OK",2);
+			resp.clid=clidCounter;
 			resp.nn=nn;
-			resp.port=htons(port);
+					
+			
+			sockTcp = Socket(resTcp->ai_family, resTcp->ai_socktype, resTcp->ai_protocol);
+			Bind(sockTcp, resTcp->ai_addr, resTcp->ai_addrlen);
+			Listen(sockTcp, 1);
+			
+			resp.port = htons(resTcp->ai_addr.sin_port);
+
+			received =  Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
+		
+			while(true){
+				
+				received = Accept(sockTcp,resTcp->ai_addr,resTcp->ai_addrlen);
+				
+				if ((pid = fork())==0){
+					
+				}
+				
+			}
+			
+			//fork();
+			
+			//accept();
+			
+			//alarm(timeout);
 			
 			
 		}else if(pokusaj>num){
-			resp.comand="HI";
-			resp.clid=clid;
+			strncpy(resp.command,"HI",2);
+			resp.clid=clidCounter;
 			resp.nn=nn;
 			
+			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 			
 		}else if(pokusaj<num){
-			resp.comand="LO";
-			resp.clid=clid;
+			strncpy(resp.command,"LO",2);
+			resp.clid=clidCounter;
 			resp.nn=nn;
-		
-			
-			
+	
+			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 		}
-		
+
 		
 		brojPokusaja++;
+		clidCounter++;
 		if(brojPokusaja==10)break;
 			
 		
