@@ -53,6 +53,10 @@ struct ID {
 	uint32_t clid;
 };
 
+struct TCP {
+	uint32_t clid;
+	char *message;
+};
 
 void *Signal(int signo, void *func){				
     void *sigfunc;
@@ -116,9 +120,6 @@ int main(int argc, char *argv[]){
 	
 	memset(&hints, 0, sizeof(hints));
 	
-	Signal(SIGALRM, sig_alrm);
-	siginterrupt(SIGALRM,1);
-	alarm(timeout);
 
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
@@ -155,7 +156,7 @@ int main(int argc, char *argv[]){
 			clientList[i]=clidCounter;
 			numberList[i]=num;
 	
-			memset(&resp,0,sizeof(resp));
+			memset(&id,0,sizeof(id));
 			
 			strncpy(id.command,"ID",2);
 			id.clid=clidCounter;
@@ -166,15 +167,15 @@ int main(int argc, char *argv[]){
 
 			received = Sendto(mysock, (char *)&id, sizeof(id), 0, &cliaddr, clilen);
 		
-			received=Recvfrom(mysock, (char*)&broj, sizeof(broj), 0, &cliaddr, &clilen);
-		
+		}else if(strncmp("BROJ",brojChar,4)==0){
+			
+			memset(&broj, 0, sizeof(broj));
+			memcpy(&broj, &buf,received);
+			
+			
 			brojChar=broj.command;
 			pokusaj=ntohs(broj.xx);
 			nn=broj.nn;
-		}else if(strncmp("BROJ",brojChar,4)==0){
-			
-			memset(&resp,0, sizeof(resp));
-			memcpy(&resp,&buf,received);
 		
 			//printf("tu\n");
 			if(pokusaj==num){
@@ -195,13 +196,21 @@ int main(int argc, char *argv[]){
 		
 			while(true){
 				
-				received = Accept(sockTcp,resTcp->ai_addr,resTcp->ai_addrlen);
+				Signal(SIGALRM, sig_alrm);
+				siginterrupt(SIGALRM,1);
+				alarm(timeout);
 				
+				received = Accept(sockTcp,resTcp->ai_addr,resTcp->ai_addrlen);
+
+
 				if ((pid = fork())==0){
-						uint32_t t = (uint32_t) broj.clid;
+						uint32_t tcpId = htonl((uint32_t) broj.clid);
 						
-						t=htonl(t);
+						struct TCP tcpS;
 						
+						tcpS.clid=tcpId;
+						strcpy(tcpS.message,":<–FLAG–MrePro–2020-2021-MI–>\n");
+						Writen(sockTcp,tcpS, sizeof(tcpS));
 						close(sockTcp);
 						exit(1);
 				}
