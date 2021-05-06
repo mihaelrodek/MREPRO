@@ -13,8 +13,10 @@
 #include <netinet/ip.h>        
 #include <signal.h>
 #include "wrapper.h"
+#include <stdlib.h>
+#include <time.h> 
 
-#define MAXLEN 512
+#define MAXLEN 12
 #define DEFAULT_PORT 5555
 
 
@@ -27,7 +29,7 @@ void sig_alrm(int signo)
 
 
 struct INIT {
-	char command;
+	char command[4];
 	uint16_t max;
 	uint16_t nula;
 };
@@ -55,7 +57,7 @@ struct ID {
 
 struct TCP {
 	uint32_t clid;
-	char *message;
+	char message[30];
 };
 
 void *Signal(int signo, void *func){				
@@ -68,60 +70,54 @@ void *Signal(int signo, void *func){
 
 int main(int argc, char *argv[]){
 	
-	int option, timeout=5;
-	char *port="1234";
+	int option, timeout=5,received;
+	char port[10];
 	
 	int mysock, sockTcp;
+	
 	pid_t pid;
-	struct sockaddr cliaddr;
-	socklen_t clilen;
-	
-	int received;
-	uint16_t max, nula,tcpPort;
-	struct addrinfo hints, hintsTcp, *res, *resTcp;
+	uint16_t max, nula, pokusaj;
 	uint32_t clidCounter=1;
-	char *sendClid;
+	struct addrinfo hints, *res;
+	struct sockaddr cliaddr;
+	socklen_t clilen, tcpaddrlen;
+		
+	char brojChar[5];
 	
-	uint16_t pokusaj,nn;
-	int brojPokusaja=0;
-	char *brojChar;
+	short pokusaji[10]={0};
+	int *numberList[10];
 	
-	int clientList[10];
-	int numberList[10];
-	
-    struct ID id;
 	struct BROJ broj;
 	struct RESP resp;
 	struct INIT initial;
 	struct TCP tcpS;
 	
-	char *buff=NULL;
-	int i=0;
+	char buff[MAXLEN];
 	
-	if (argc!=1 && argc!=3 && argc!=4){
-		err(3,"Usage: ./zamisli [-t timeout] [port]");
-	}
 	
-	while ((option = getopt(argc, argv, "t:p")) != -1){
+	srand(time(0));
+	
+	while ((option = getopt(argc, argv, "t:")) != -1){
 		switch (option){
 			case 't':
 				timeout = atoi(optarg);
 				break;
-			case 'p':
-				port = optarg;
-				break;
 			default:
-				timeout=5;
-				port="1234";
+				err(3,"Usage: ./zamisli [-t timeout] [port]\n");
 				break;
 		}
 	}
 	
-	//printf("%d, %s\n", timeout, port);
+	if (optind == argc) {
+		strcpy(port, "1234");
+	} else if (optind < argc && argc - optind == 1) {
+		strcpy(port, argv[optind]);
+	} else {
+		err(3,"Usage: ./zamisli [-t timeout] [port]\n");
+	}
 	
 	memset(&hints, 0, sizeof(hints));
 	
-
 	hints.ai_family = AF_INET;
 	hints.ai_socktype = SOCK_DGRAM;
 	hints.ai_flags =  AI_PASSIVE;
@@ -133,115 +129,126 @@ int main(int argc, char *argv[]){
 	Bind(mysock, res->ai_addr, res->ai_addrlen);
 	
 	clilen = sizeof(cliaddr);
-	//pid=getpid();
-	
-	
 	
 	while(true){
 		
 		received = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
+		strncpy(brojChar, buff, 4);
+		brojChar[4] = '\0';
 		
-	
-	
-		if(strncmp("INIT",brojChar,4)==0){
+		if(strcmp("INIT",brojChar)==0){
 
 			memset(&initial,0,sizeof(initial));
-			memcpy(&initial,&buff,received);
+			memcpy(&initial,buff,sizeof(initial));
+			int clid=clidCounter;
+			clidCounter++;
+			
 			max = ntohs(initial.max);
 			nula = initial.nula;
 		
-			srand(time(0));
 		
 			int num = (rand() % (max - nula + 1)) + nula;
 	
-			clientList[i]=clidCounter;
-			numberList[i]=num;
+			numberList[clid]=&num;
 	
-			memset(&id,0,sizeof(id));
+			memset(&resp,0,sizeof(resp));
 			
-			strncpy(id.command,"ID",2);
-			id.clid=clidCounter;
+			strncpy(resp.command,"ID",2);
+			resp.clid=htonl(clid);
     
-			clidCounter++;
-    
-			clilen = sizeof(cliaddr);
-
-			received = Sendto(mysock, (char *)&id, sizeof(id), 0, &cliaddr, clilen);
+			received = Sendto(mysock, &resp, MAXLEN, 0, &cliaddr, clilen);
 		
-		}else if(strncmp("BROJ",brojChar,4)==0){
+		}else if(strcmp("BROJ",brojChar)==0){
 			
 			memset(&broj, 0, sizeof(broj));
-			memcpy(&broj, &buff,received);
+			memcpy(&broj, buff, sizeof(broj));
+			memset(&resp, 0, sizeof resp);
 			
-			
-			brojChar=broj.command;
 			pokusaj=ntohs(broj.xx);
-			
-			for(int j=0;j<10;j++)
-				if(broj.clid!=j) continue;
+			int clid=ntohl(broj.clid);
+			int brojCompare = *numberList[clid];
 		
-			//printf("tu\n");
-			if(pokusaj==numberList[i]){
-			
-			Getaddrinfo(NULL, 0, &hintsTcp, &resTcp);
-			
-			strncpy(resp.command,"OK",2);
-			resp.clid=broj.clid;
-			resp.nn=broj.nn;
-			
-			sockTcp = Socket(resTcp->ai_family, resTcp->ai_socktype, resTcp->ai_protocol);
-			
-			Bind(sockTcp, resTcp->ai_addr, resTcp->ai_addrlen);
-			resp.port = htons(((struct sockaddr_in *)resTcp->ai_addr)->sin_port);
+			if (numberList[clid] == NULL || clid >= clidCounter ){
+				//out of bound, do nothing
+				continue;
+			}
 
-			Listen(sockTcp, 1);
-			
-
-			received =  Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
-		
-			while(true){
+			if(pokusaj==brojCompare){
 				
-				Signal(SIGALRM, sig_alrm);
-				siginterrupt(SIGALRM,1);
-				alarm(timeout);
+				strncpy(resp.command,"OK",2);
 				
-				received = Accept(sockTcp,resTcp->ai_addr,&resTcp->ai_addrlen);
+				resp.clid=broj.clid;
+				pokusaji[clid]++;
+				resp.nn=htons(pokusaji[clid]);
+				struct sockaddr_in tcpaddr;
 
+				memset(&tcpaddr, 0, sizeof (tcpaddr));
+				sockTcp = Socket(PF_INET, SOCK_STREAM, 0);
+				setsockopt(sockTcp, SOL_SOCKET, SO_REUSEADDR, 1, sizeof(int));
+				
+				tcpaddr.sin_family = AF_INET;
+				tcpaddr.sin_port = 0;
+				tcpaddr.sin_addr.s_addr = INADDR_ANY;
 
-				if ((pid = fork())==0){
-						uint32_t tcpId = htonl((uint32_t) broj.clid);
+				tcpaddrlen = sizeof(tcpaddr); 
+				
+				Bind(sockTcp, (struct sockaddr*)&tcpaddr, tcpaddrlen);
+				
+				Listen(sockTcp, 1);
+				
+				getsockname(sockTcp, (struct sockaddr*)&tcpaddr, &tcpaddrlen);
+
+						
+				resp.port = tcpaddr.sin_port;
+				if (fork()==0){
+				
+						Signal(SIGALRM, sig_alrm);
+						siginterrupt(SIGALRM,1);
+						alarm(timeout);
+						struct sockaddr tcpclientaddr;
+						received = Accept(sockTcp, &tcpclientaddr, &tcpaddrlen);
+						
+						if(received==-1){
+							printf("Neuspjelo spajanje nakon sto je proslo %d sekunda.\n", timeout);
+							close(sockTcp);
+							return 0;
+						}
+						
+						//uint32_t tcpId = htonl((uint32_t) broj.clid);
 						
 						memset(&tcpS, 0, sizeof(tcpS));
-
-						tcpS.clid=tcpId;
+						tcpS.clid=broj.clid;
 						strcpy(tcpS.message,":<–FLAG–MrePro–2020-2021-MI–>\n");
-						writen(sockTcp,&tcpS, sizeof(tcpS));
+						writen(received, &tcpS, sizeof(tcpS));
+						close(received);
 						close(sockTcp);
-						exit(1);
+						return 0;
 				}
+				received = Sendto(mysock, &resp, MAXLEN, 0, &cliaddr, clilen);
+				close(sockTcp);
+				
+			}else if(pokusaj>brojCompare){
+				strncpy(resp.command,"LO",2);
+				resp.clid=broj.clid;
+				pokusaji[clid]++;
+				resp.nn=htons(pokusaji[clid]);
+		
+			received = Sendto(mysock, &resp, MAXLEN, 0, &cliaddr, clilen);
+				
+			}else if(pokusaj<brojCompare){
+				strncpy(resp.command,"HI",2);
+				resp.clid=broj.clid;
+				pokusaji[clid]++;
+				resp.nn=htons(pokusaji[clid]);
+		
+				received = Sendto(mysock, &resp, MAXLEN, 0, &cliaddr, clilen);
+				
 			}
 			
 			
-		}else if(pokusaj>numberList[i]){
-			strncpy(resp.command,"HI",2);
-			resp.clid=broj.clid;
-			resp.nn=nn;
-			
-			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
-			
-		}else if(pokusaj<numberList[i]){
-			strncpy(resp.command,"LO",2);
-			resp.clid=broj.clid;
-			resp.nn=nn;
-	
-			received = Sendto(mysock, (char *)&resp, sizeof(resp), 0, &cliaddr, clilen);
 		}
-		
-		clidCounter++;
 		if(clidCounter==10)break;
-					
 	}
-}
-	
+	close(mysock);
 	
 }
