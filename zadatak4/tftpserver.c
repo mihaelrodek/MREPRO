@@ -1,4 +1,4 @@
-#include "utility.h"
+#include "wrapper.h"
 #include <signal.h>
 #include <netdb.h>
 #include <syslog.h>
@@ -74,20 +74,20 @@ int daemon_init(const char *pname, int facility)
 
 int main(int argc, char *argv[]) {
 	
-	int option, code, msglen, tmplen, control;
-	int ackNum=-1, lastack = 0, numofretransmisions = 0, remembered = 0,error = 0, imaklijenta = 0;
+	int option, code, recieved, tmplen, check;
+	int ackNum=-1, lastack = 0, transmissionCounter = 0, remembered = 0, imaklijenta = 0;
 	bool deamong_flag = false;
 	char c;
 	short rcv;
 	long stopped = 0;
 	
-	char buff[MSGLEN], filename[MAXLEN64], sendmethod[MAXLEN64], port[20] = "69";
+	char filename[MAXLEN64], sendmethod[MAXLEN64], port[20] = "69";
 	FILE *file;
 
 
-	int sock, clientsock;
+	int mySock, clientsock;
 	struct sockaddr_in addr;
-	struct sockaddr_in client;
+	struct sockaddr_in clientaddr;
 	
 	struct addrinfo hints, *res;
 	socklen_t addrlen;
@@ -98,6 +98,7 @@ int main(int argc, char *argv[]) {
 	
 	if (argc!=3 && argc!=2){
 		err(3,"Usage ./tftpserver [-d] port_name_or_number\n");
+		exit(1);
 	}
 	
 	while((option = getopt(argc, argv, "d")) != -1) {
@@ -107,6 +108,7 @@ int main(int argc, char *argv[]) {
 				break;			
 			default:
 				err(3,"Usage ./tftpserver [-d] port_name_or_number\n");
+				exit(1);
 				return 1;
 		}
 	}
@@ -144,10 +146,10 @@ int main(int argc, char *argv[]) {
 			{
 				if (errno == EAGAIN){ 
 					
-					if(transimissionCounter >= 3){
+					if(transmissionCounter >= 3){
 						errx(1, "Nemoguce pristupiti klijentu.");
 					}
-					transimissionCounter++;
+					transmissionCounter++;
 					Sendto(clientsock, &mess, 2+2+tmplen, 0, (struct sockaddr *) &clientaddr, addrlen);
 					
 					continue;
@@ -217,7 +219,7 @@ int main(int argc, char *argv[]) {
 				mess.number = htons(1);
 				tmplen = 0;
 				
-				control = 1;
+				check = 1;
 				while (tmplen < MAXLEN512 && check == 1)
 				{
 					check = fread( &c, 1, 1, file);
