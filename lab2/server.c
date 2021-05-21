@@ -22,9 +22,11 @@ int main(int argc, char *argv[]){
 	struct sockaddr fromServerAddr;
 	socklen_t fromServerLen;
 	struct addrinfo hints, *res;
-
-	char *tcp_port_addr="1234", *udp_port_addr="1234", *payload;
-	char input[MAXLEN],recMsg[MAXLEN] = {0};
+	
+	const int on = 1;
+	char popis[MAXLEN] = "\0";
+	char tcp_port_addr[MAXLEN]="1234", udp_port_addr[MAXLEN]="1234";
+	char input[MAXLEN],message[MAXLEN] = {0};
 	
 	fd_set readfds;
     int fdmax;
@@ -40,23 +42,22 @@ int main(int argc, char *argv[]){
 	while ((option = getopt(argc, argv, "t:u:p:")) != -1){
 		switch (option){
 			case 't':
-				tcp_port_addr = optarg;
+				strcpy(tcp_port_addr, optarg);
 				break;
 			case 'u':
-				udp_port_addr = optarg;
+				strcpy(udp_port_addr, optarg);
 				break;
 			case 'p':
-				payload = optarg;
+				strcpy(popis, optarg);
 				break;
 			default:
-				udp_port_addr="1234";
-				tcp_port_addr="1234";
-				payload="";
+				err(3,"./server [-t tcp_port] [-u udp_port] [-p popis]");
 				break;
 		}
 	}
 	
-	
+	popis[strlen(popis)] = '\n';
+
 	
 	fromServerLen = sizeof(fromServerAddr);
 	//TCP
@@ -70,7 +71,7 @@ int main(int argc, char *argv[]){
 
     myTcpSock = Socket(res->ai_family,res->ai_socktype,res->ai_protocol);
     
-	Setsockopt(myTcpSock, SOL_SOCKET, SO_REUSEADDR, &(int) {1}, sizeof(int));
+	Setsockopt(myTcpSock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 	Bind(myTcpSock, res->ai_addr, res->ai_addrlen);
 	
 	Listen(myTcpSock, 1);
@@ -94,52 +95,53 @@ int main(int argc, char *argv[]){
 		fdmax = myTcpSock;
 	else
 		fdmax = myUdpSock;
-		
+
 	while(1){
 		
 		FD_ZERO(&readfds);
-		FD_SET(0, &readfds);
+		FD_SET(STDIN, &readfds);
 		FD_SET(myTcpSock, &readfds);
 		FD_SET(myUdpSock, &readfds);
 		
 		Select(fdmax + 1, &readfds, NULL, NULL, &tv);
 		
+
 		if (FD_ISSET(myTcpSock, &readfds)) {
-			
+			//printf("Tcp\n");
+
 			recieved = Accept(myTcpSock, &fromServerAddr, &fromServerLen);
 				
-			len = recv(recieved, &recMsg[0], MAXLEN, 0);
+			len = recv(recieved, &message[0], MAXLEN, 0);
 			
-			if (strcmp(recMsg, "HELLO\n") == 0) {
-				send(recieved, payload, strlen(payload), 0);
+			if (strcmp(message, "HELLO\n") == 0) {
+				send(recieved, popis, strlen(popis), 0);
 			}			
-                
             close(recieved);
 		}
 		
 		if (FD_ISSET(myUdpSock, &readfds)) {
-			recieved = Recvfrom(myUdpSock, recMsg, MAXLEN, 0, &fromServerAddr, &fromServerLen);
-			if (strcmp(recMsg, "HELLO\n") == 0) {
-				Sendto(myUdpSock, payload, MAXLEN, 0, &fromServerAddr, fromServerLen);
+			//printf("Udp\n");
+
+			recieved = Recvfrom(myUdpSock, message, MAXLEN, 0, &fromServerAddr, &fromServerLen);
+			if (strcmp(message, "HELLO\n") == 0) {
+				Sendto(myUdpSock, popis, MAXLEN, 0, &fromServerAddr, fromServerLen);
 			}			
 		}
 		
 		if (FD_ISSET(STDIN, &readfds)) {
-			fgets(input , MAXLEN, stdin);
-			
-			if (strcmp("PRINT\n", input) == 0) {
-				printf("%s", payload);
+			fgets(input, MAXLEN, stdin);
+			//printf("STDIN\n");
+
+			if (strncmp("PRINT", input, 5) == 0) {
+				printf("Prinitng payload: %s", popis);
 			} else if (strncmp("SET", input, 3) == 0) {
-				memset(&payload, 0, sizeof(payload));
-				strcpy(payload, input + 4);
-			} else if (strcmp("QUIT\n", input) == 0) {
+				memset(&popis, 0, sizeof(popis));
+				printf("Payload set to: %s", input);
+				strcpy(popis, input + 4);
+			} else if (strncmp("QUIT", input, 4) == 0) {
 				return 0;
 			}
 		}
-		
-		
-		
-		
 	}
 }
 	
