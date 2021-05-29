@@ -117,7 +117,9 @@ int main (int argc, char *argv[]){
         recieved = Select(n, &readfds, NULL, NULL, &tv);
         
 		if (recieved == 0) {
+
 			//printf("Timeout!\n");
+
 		} else {
 			
 			if(FD_ISSET(0, &readfds)){
