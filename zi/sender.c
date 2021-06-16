@@ -13,20 +13,38 @@
 #include "wrapper.h"
 #include <stdbool.h>
 
+
+#define BACKLOG 20
+
+struct IP_PORT{
+	char IP[INET_ADDRSTRLEN];
+    char PORT[22];
+};
+
 int main (int argc, char *argv[]){
 	
+	
+	const int on = 1;
 	
 	int option, seconds=0, delay=0;
 	bool tcp_flag = false, udp_flag = false, r_flag = false, delay_flag=false;
 	char *string = "string";
-	int pos=1;
+	int pos=1,j=0, portnum=0;
+	int sockfd, mysock;
+	char *IP_address;
 	
+	struct addrinfo hints, *res;
+    struct sockaddr cli, tcp_addr;
+    struct sockaddr_in clientaddr;
+    socklen_t clilen;
+	
+	struct IP_PORT pairs[20];
 	
 	while ((option = getopt(argc, argv, "r:d:tu")) != -1 ) {
 		switch (option) {
 			case 'r':			
 				pos+=2;
-				r_flaf = true;
+				r_flag = true;
 				seconds = atoi(optarg);
 				break;
 			case 'd':
@@ -48,40 +66,69 @@ int main (int argc, char *argv[]){
 		}
 	}
 	
-	string = argc[pos];
+		//FLAGS
+	printf("%s, %s, %s, %s\n", r_flag ? "true" : "false", delay_flag ? "true" : "false",tcp_flag ? "true" : "false", udp_flag ? "true" : "false");
 	
-	for(int i=pos;i<
+	printf("pos:%d, argc:%d\n", pos, argc);
 	
+	string = argv[pos];
 	
+	for(int i=pos+2;i<argc;i++){
+		pairs[j].IP[0] = argv[pos+1];
+		pairs[j].PORT[0] = argv[i];
+		j++;
+	}
 	
-	if(tcp_flag == true && udp_flag==falase){
+	IP_address = argv[pos+1];
+
+	portnum=j+1;
+	printf("postnum:%d\n", portnum);
+	
+	if(tcp_flag == true && udp_flag==false){
 	
 		//TCP
-		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_STREAM;
-		hints.ai_protocol = 0;
-		hints.ai_flags |= AI_PASSIVE;
-
-		Getaddrinfo(NULL, tcp_port, &hints, &res);
-		sockfd = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-
-		Bind(sockfd, res->ai_addr, res->ai_addrlen);
+		
+		for(int k=0,k<portnum){
 			
-		Listen(sockfd, BACKLOG);
+			memset(&hints, 0, sizeof(hints));
+			memset(&res, 0, sizeof(res));
+			
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = 0;
+			hints.ai_flags |= AI_PASSIVE;
+
+			Getaddrinfo(IP_address, pairs[k].PORT[0], &hints, &res);
+			
+			sockfd = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+			
+			recieved = Sendto()
+
+			Bind(sockfd, res->ai_addr, res->ai_addrlen);
+				
+			Listen(sockfd, BACKLOG);
+		
+		}
 		
 	}else if(tcp_flag == false && udp_flag==true){
+		
 		//UDP
 		memset(&hints, 0, sizeof hints);
+		memset(&res, 0, sizeof(res));
+			
 		hints.ai_family = AF_INET;
 		hints.ai_socktype = SOCK_DGRAM;
 		hints.ai_flags = AI_PASSIVE;
 
-		Getaddrinfo(NULL, "5555", &hints, &res);
+		Getaddrinfo(IP_address, pairs[k].PORT[0], &hints, &res);
+		mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+		setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+		
+		recieved = Sendto()
 
-		mysock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		bind(mysock,res->ai_addr, res->ai_addrlen);
+		
+		Bind(mysock,res->ai_addr, res->ai_addrlen);
 		
 	}else{
 		//TCP I UDP
