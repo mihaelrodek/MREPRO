@@ -176,8 +176,7 @@ int main(int argc, char *argv[]) {
 			for(int k = 0; k < strlen(sendmethod); k++){
         		if(sendmethod[k] > 96) sendmethod[k] -= 32;
 			}
-			
-			//printf("%s, %s\n", filename, sendmethod);
+		
         	
         	int slash = 0;
         	for(int k = 0; k < strlen(filename); k++){

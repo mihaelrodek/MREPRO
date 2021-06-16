@@ -15,6 +15,7 @@
 
 
 #define BACKLOG 20
+#define MAXLEN 512
 
 struct IP_PORT{
 	char IP[INET_ADDRSTRLEN];
@@ -30,15 +31,22 @@ int main (int argc, char *argv[]){
 	bool tcp_flag = false, udp_flag = false, r_flag = false, delay_flag=false;
 	char *string = "string";
 	int pos=1,j=0, portnum=0;
-	int sockfd, mysock;
-	char *IP_address;
+	int sockfd, mysock, recieved;
+	char *IP_address, *buff;
+	int k=0;
 	
 	struct addrinfo hints, *res;
     struct sockaddr cli, tcp_addr;
     struct sockaddr_in clientaddr;
-    socklen_t clilen;
+    struct sockaddr cliaddr;
+	socklen_t clilen;
 	
 	struct IP_PORT pairs[20];
+	
+	struct timeval {
+		long tv_sec;
+		long tv_usec;
+	};
 	
 	while ((option = getopt(argc, argv, "r:d:tu")) != -1 ) {
 		switch (option) {
@@ -66,6 +74,11 @@ int main (int argc, char *argv[]){
 		}
 	}
 	
+	
+	struct timeval cekaj_sec = {seconds,0};
+	struct timeval cekaj_delay = {delay,0};
+
+	
 		//FLAGS
 	printf("%s, %s, %s, %s\n", r_flag ? "true" : "false", delay_flag ? "true" : "false",tcp_flag ? "true" : "false", udp_flag ? "true" : "false");
 	
@@ -88,7 +101,7 @@ int main (int argc, char *argv[]){
 	
 		//TCP
 		
-		for(int k=0,k<portnum){
+		for(k=0;k<portnum;k++){
 			
 			memset(&hints, 0, sizeof(hints));
 			memset(&res, 0, sizeof(res));
@@ -103,36 +116,123 @@ int main (int argc, char *argv[]){
 			sockfd = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 			
-			recieved = Sendto()
 
 			Bind(sockfd, res->ai_addr, res->ai_addrlen);
 				
 			Listen(sockfd, BACKLOG);
+			
+			setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval));
+			if(seconds != 0)
+				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval))>=0){
+					
+					recieved = Recvfrom(sockfd, buff, MAXLEN, 0, &cliaddr, &clilen);
+					
+					if(recieved!=-1)
+						printf("TCP %d open\n", pairs[k].PORT[0]);
+					
+				}
+				
+			sleep(delay);
 		
 		}
 		
 	}else if(tcp_flag == false && udp_flag==true){
 		
 		//UDP
-		memset(&hints, 0, sizeof hints);
-		memset(&res, 0, sizeof(res));
+		
+		for(k=0;k<portnum;k++){
+			memset(&hints, 0, sizeof hints);
+			memset(&res, 0, sizeof(res));
+				
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_flags = AI_PASSIVE;
+
+			Getaddrinfo(IP_address, pairs[k].PORT[0], &hints, &res);
+			mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 			
-		hints.ai_family = AF_INET;
-		hints.ai_socktype = SOCK_DGRAM;
-		hints.ai_flags = AI_PASSIVE;
-
-		Getaddrinfo(IP_address, pairs[k].PORT[0], &hints, &res);
-		mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-		setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-		
-		recieved = Sendto()
-
-		
-		Bind(mysock,res->ai_addr, res->ai_addrlen);
+			Bind(mysock,res->ai_addr, res->ai_addrlen);
+			
+			recieved = Sendto(mysock, string, strlen(string), 0, &cliaddr, clilen);
+			
+			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+			
+			if(seconds != 0)
+				if (setsockopt(mysock, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval))>=0){
+					
+					recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
+					
+					if(recieved!=-1)
+						printf("UDP %d open\n", pairs[k].PORT[0]);
+					
+				}
+			sleep(delay);
+		}
 		
 	}else{
 		//TCP I UDP
 		
+		for(k=0;k<portnum;k++){
+			
+			memset(&hints, 0, sizeof hints);
+			memset(&res, 0, sizeof(res));
+				
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_DGRAM;
+			hints.ai_flags = AI_PASSIVE;
+
+			Getaddrinfo(IP_address, pairs[k].PORT[0], &hints, &res);
+			mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			
+			Bind(mysock,res->ai_addr, res->ai_addrlen);
+			
+			recieved = Sendto(mysock, string, strlen(string), 0, &cliaddr, clilen);
+			
+			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+			
+			if(seconds != 0)
+				if (setsockopt(mysock, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval))>=0){
+					
+					recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
+					
+					if(recieved!=-1)
+						printf("UDP %d open\n", pairs[k].PORT[0]);
+					
+				}
+				
+			setsockopt(sockfd, SOL_SOCKET, SO_REUSEPORT, &on, sizeof(on));
+
+			memset(&hints, 0, sizeof(hints));
+			memset(&res, 0, sizeof(res));
+			
+			hints.ai_family = AF_INET;
+			hints.ai_socktype = SOCK_STREAM;
+			hints.ai_protocol = 0;
+			hints.ai_flags |= AI_PASSIVE;
+
+			Getaddrinfo(IP_address, pairs[k].PORT[0], &hints, &res);
+			
+			sockfd = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+			
+			Bind(sockfd, res->ai_addr, res->ai_addrlen);
+				
+			Listen(sockfd, BACKLOG);
+			
+			setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval));
+			if(seconds != 0)
+				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval))>=0){
+					
+					recieved = Recvfrom(sockfd, buff, MAXLEN, 0, &cliaddr, &clilen);
+					
+					if(recieved!=-1)
+						printf("TCP %d open\n", pairs[k].PORT[0]);
+					
+				}
+				
+			sleep(delay);
+			
+		}
 	}
 	
 		

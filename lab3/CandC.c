@@ -594,7 +594,7 @@ int main (int argc, char *argv[]){
 								Send(newfd, response, strlen(response), 0);
 								
 							} else if(strcmp(path + 5, "stop") == 0){
-								printf("--> STIOP\n");
+								printf("--> STOP\n");
 
 								struct CANDC smsg;
 								strcpy(&smsg.command, "4");
@@ -672,7 +672,7 @@ int main (int argc, char *argv[]){
 								asprintf(&response, "%s\r\n", response);
 								asprintf(&response, "%s<html><h3>Pokrenut quit.</h3></html>", response);
 								Send(newfd, response, strlen(response), 0);
-								
+								exit(1);
 								
 							} else {
 								
