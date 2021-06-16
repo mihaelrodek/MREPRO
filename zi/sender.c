@@ -158,7 +158,7 @@ int main (int argc, char *argv[]){
 			
 			Bind(mysock,res->ai_addr, res->ai_addrlen);
 			
-			recieved = Sendto(mysock, string_send, strlen(string), 0, &cliaddr, clilen);
+			recieved = Sendto(mysock, string_send, strlen(string_send), 0, &cliaddr, clilen);
 			
 			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 			
