@@ -29,7 +29,7 @@ int main (int argc, char *argv[]){
 	
 	int option, seconds=0, delay=0;
 	bool tcp_flag = false, udp_flag = false, r_flag = false, delay_flag=false;
-	char *string = "string";
+	char *string_send = "string";
 	int pos=1,j=0, portnum=0;
 	int sockfd, mysock, recieved;
 	char *IP_address, *buff;
@@ -84,7 +84,7 @@ int main (int argc, char *argv[]){
 	
 	printf("pos:%d, argc:%d\n", pos, argc);
 	
-	string = argv[pos];
+	string_send = argv[pos];
 	
 	for(int i=pos+2;i<argc;i++){
 		pairs[j].IP[0] = argv[pos+1];
@@ -96,6 +96,9 @@ int main (int argc, char *argv[]){
 
 	portnum=j+1;
 	printf("postnum:%d\n", portnum);
+	
+	
+	clilen=sizeof(clientaddr);
 	
 	if(tcp_flag == true && udp_flag==false){
 	
@@ -121,6 +124,8 @@ int main (int argc, char *argv[]){
 				
 			Listen(sockfd, BACKLOG);
 			
+			Sendto(sockfd, string_send, strlen(string_send), 0, &cliaddr, clilen);
+		
 			setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval));
 			if(seconds != 0)
 				if (setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval))>=0){
@@ -153,7 +158,7 @@ int main (int argc, char *argv[]){
 			
 			Bind(mysock,res->ai_addr, res->ai_addrlen);
 			
-			recieved = Sendto(mysock, string, strlen(string), 0, &cliaddr, clilen);
+			recieved = Sendto(mysock, string_send, strlen(string), 0, &cliaddr, clilen);
 			
 			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 			
@@ -186,7 +191,7 @@ int main (int argc, char *argv[]){
 			
 			Bind(mysock,res->ai_addr, res->ai_addrlen);
 			
-			recieved = Sendto(mysock, string, strlen(string), 0, &cliaddr, clilen);
+			recieved = Sendto(mysock, string_send, strlen(string_send), 0, &cliaddr, clilen);
 			
 			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 			
@@ -216,7 +221,8 @@ int main (int argc, char *argv[]){
 			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 			
 			Bind(sockfd, res->ai_addr, res->ai_addrlen);
-				
+			recieved = Sendto(mysock, string_send, strlen(string_send), 0, &cliaddr, clilen);
+	
 			Listen(sockfd, BACKLOG);
 			
 			setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &cekaj_sec, sizeof(struct timeval));

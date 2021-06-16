@@ -71,9 +71,9 @@ int main (int argc, char *argv[]){
 	
 	struct timeval tv = {timeout,0};
 
-		
 	
 	FD_ZERO(&readfds);
+	
 	if(tcp_flag == true && udp_flag==false){
 	
 		//TCP
@@ -99,7 +99,10 @@ int main (int argc, char *argv[]){
 			
 			
 			recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
-			FD_SET(mysock, &readfds);
+			printf("\t Local: \t Remote:\n");
+			
+			printf("proto  %s:%s\t %s:%s", buff,buff,buff,buff);
+			
 		
 		}
 		
@@ -122,7 +125,10 @@ int main (int argc, char *argv[]){
 			Bind(mysock,res->ai_addr, res->ai_addrlen);
 			
 			recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
-	
+			printf("\t Local: \t Remote:\n");
+
+			printf("proto  %s:%s\t %s:%s", buff,buff,buff,buff);
+
 			FD_SET(mysock, &readfds);
 		}
 		
