@@ -16,29 +16,33 @@
 
 #define BACKLOG 20
 #define MAXLEN 512
+#define N 20
+
+int pronadi_max(int x, int y) {
+    if(x > y) return x;
+    else return y;
+}
+
 
 int main (int argc, char *argv[]){
 	
 	int on=1;
-	int option, timeout, pos=0, recieved;
-	bool tcp_flag = false, udp_flag = false;
+	int option, timeout, pos=0, recieved, index, maxfd,port;
+	bool tcp_flag = false, udp_flag = false, timeout_flag=false;
 	char *string;
 	int portnum=0,j=0;
-	int mysock, sockfd;
-	char *buff=NULL;
+	int sockfd_tcp=0, sockfd_udp=0, sockfd=0;
 	char ports[20];
 	struct addrinfo hints, *res;
-    struct sockaddr cli, tcp_addr;
-    struct sockaddr_in clientaddr;
-    struct sockaddr cliaddr;
-	socklen_t clilen;
 	fd_set readfds;
+	int tcp_sockfd[N], udp_sockfd[N];
 
 	
 	while ((option = getopt(argc, argv, "i:tu")) != -1 ) {
 		switch (option) {
 			case 'i':	
-				pos+=2;			
+				pos+=2;
+				timeout_flag = true;
 				timeout = atoi(optarg);
 				break;
 			case 't':
@@ -54,17 +58,19 @@ int main (int argc, char *argv[]){
 				return 2;
 		}
 	}
-	
+
 	struct timeval {
 		long tv_sec;
 		long tv_usec;
 	};
-	
-	string = argv[pos];
-	
-	for(int i=pos+1; i<argc;i++){
-		ports[j] = argv[i];
-		j++;
+
+	index = optind;
+	string = argv[index];
+	index++;
+	printf("string: %s\n", string);
+
+	for(int i=index; i<argc;i++){
+        strcpy(&ports[j++], argv[i]);
 	}
 	
 	portnum=j;
@@ -82,28 +88,28 @@ int main (int argc, char *argv[]){
 			
 			memset(&hints, 0, sizeof(hints));
 			memset(&res, 0, sizeof(res));
-			
+
+            sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+            tcp_sockfd[k] = sockfd;
+
 			hints.ai_family = AF_INET;
 			hints.ai_socktype = SOCK_STREAM;
-			hints.ai_protocol = 0;
-			hints.ai_flags |= AI_PASSIVE;
 
-			Getaddrinfo(NULL, ports[k], &hints, &res);
-			
-			sockfd = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+			Getaddrinfo(NULL, &ports[k], &hints, &res);
+
 			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
 
 			Bind(sockfd, res->ai_addr, res->ai_addrlen);
 				
 			Listen(sockfd, BACKLOG);
-			
-			
-			recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
-			printf("\t Local: \t Remote:\n");
-			
-			printf("proto  %s:%s\t %s:%s", buff,buff,buff,buff);
-			
-		
+
+
+			//recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
+			//printf("\t Local: \t Remote:\n");
+
+			//printf("proto  %s:%s\t %s:%s", buff,buff,buff,buff);
+
+
 		}
 		
 	}else if(tcp_flag == false && udp_flag==true){
@@ -113,50 +119,108 @@ int main (int argc, char *argv[]){
 		for(int k=0;k<portnum;k++){
 			memset(&hints, 0, sizeof hints);
 			memset(&res, 0, sizeof(res));
-				
-			hints.ai_family = AF_INET;
+
+            sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+            udp_sockfd[k] = sockfd;
+
+            hints.ai_family = AF_INET;
 			hints.ai_socktype = SOCK_DGRAM;
 			hints.ai_flags = AI_PASSIVE;
 
-			Getaddrinfo(NULL, ports[k], &hints, &res);
-			mysock = Socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-			setsockopt(mysock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
-			
-			Bind(mysock,res->ai_addr, res->ai_addrlen);
-			
-			recieved = Recvfrom(mysock, buff, MAXLEN, 0, &cliaddr, &clilen);
-			printf("\t Local: \t Remote:\n");
+			Getaddrinfo(NULL, &ports[k], &hints, &res);
 
-			printf("proto  %s:%s\t %s:%s", buff,buff,buff,buff);
+			setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+			
+			Bind(sockfd,res->ai_addr, res->ai_addrlen);
+			
+			//recieved = Recvfrom(sockfd, buff, MAXLEN, 0, &cliaddr, &clilen);
+			//printf("\t Local: \t Remote:\n");
 
-			FD_SET(mysock, &readfds);
+			//printf("proto  %s:%s\t %s:%s", buff,buff,buff,buff);
+
+			//FD_SET(sockfd, &readfds);
 		}
 		
 	}else{
 		//TCP I UDP
-		
-		for(int k=0;k<portnum;k++){
-								
-			FD_SET(0, &readfds);
-			
-			recieved = Select(portnum, &readfds, NULL, NULL, &tv);
-			
-			if (recieved == 0) {
 
-			//printf("Timeout!\n");
+        for(int k=0;k<portnum;k++) {
+            //TCP
+            memset(&hints, 0, sizeof(hints));
+            memset(&res, 0, sizeof(res));
 
-			} else {
-			
-			if(FD_ISSET(0, &readfds)){
-				
-			}else if(FD_ISSET(mysock, &readfds)){
-				
-			}else if(FD_ISSET(sockfd, &readfds)){
-				
-			}
-		
-		}
-		
+            sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+            tcp_sockfd[k] = sockfd;
+
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_STREAM;
+
+            Getaddrinfo(NULL, &ports[k], &hints, &res);
+
+            setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+            Bind(sockfd, res->ai_addr, res->ai_addrlen);
+
+            Listen(sockfd, BACKLOG);
+
+            //UDP
+            memset(&hints, 0, sizeof hints);
+            memset(&res, 0, sizeof(res));
+
+            sockfd = Socket(AF_INET, SOCK_DGRAM, 0);
+            udp_sockfd[k] = sockfd;
+
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_DGRAM;
+            hints.ai_flags = AI_PASSIVE;
+
+            Getaddrinfo(NULL, &ports[k], &hints, &res);
+
+            setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+            Bind(sockfd,res->ai_addr, res->ai_addrlen);
+
+        }
+
 	}
-}
+
+	maxfd=-1;
+
+    while(1){
+
+        for(int k=0;k<portnum;k++) {
+
+            if (udp_flag == 1 || (udp_flag == 0 && tcp_flag == 0)) {
+                FD_SET(udp_sockfd[k], &readfds);
+                maxfd = pronadi_max(maxfd, udp_sockfd[k]);
+            }
+
+            if (tcp_flag == 1 || (udp_flag== 0 && tcp_flag == 0)) {
+                FD_SET(tcp_sockfd[k], &readfds);
+                maxfd = pronadi_max(maxfd, tcp_sockfd[k]);
+            }
+        }
+
+        if(timeout_flag == true)
+            recieved = Select(maxfd+1, &readfds, NULL, NULL, &tv);
+        else
+            recieved = Select(maxfd+1, &readfds, NULL, NULL, NULL);
+
+        for(int l=0; l < portnum;l++){
+
+            if(FD_ISSET(udp_sockfd[l], &readfds) && (udp_flag == 1 || (udp_flag==0 && tcp_flag==0))){
+                sockfd_udp = udp_sockfd[l];
+                port = ports[l];
+                break;
+            }
+
+            if(FD_ISSET(tcp_sockfd[l], &readfds) && (tcp_flag == 1 || (udp_flag==0 && tcp_flag==0))){
+                sockfd_tcp = tcp_sockfd[l];
+                port = ports[l];
+                break;
+            }
+        }
+
+
+    }
 }
